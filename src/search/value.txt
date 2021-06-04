@@ -1,0 +1,3 @@
+Whereas semaphore can be used across process space and hence it can be used for interprocess synchronization. ii)
+Mutex is lightweight and faster than semaphore. Futex is even faster. iii) Mutex can be acquired by same thread
+successfully multiple times with condition that it should release it same number of times.
