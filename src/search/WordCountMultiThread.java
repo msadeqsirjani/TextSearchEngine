@@ -9,13 +9,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 class WordCountMultiThread {
-    private static final int THREAD_COUNT = 1;
+    private static final int THREAD_COUNT = 4;
 
 
     private static class FileIterator implements Iterator, AutoCloseable {
@@ -60,7 +57,7 @@ class WordCountMultiThread {
             try {
                 String lineToReturn = reader.readLine();
                 this.words.add(lineToReturn);
-                if(lineToReturn == null)
+                if (lineToReturn == null)
                     return;
                 next(reader);
             } catch (IOException ignored) {
@@ -83,6 +80,10 @@ class WordCountMultiThread {
 
 
     private static class Transformers {
+        private Semaphore semaphore = new Semaphore(1);
+        private Object mutex = new Object();
+
+
         public String[] mapToTokens(String input) {
             return input.split("[ _.,\\-+]");
         }
@@ -111,6 +112,25 @@ class WordCountMultiThread {
         public synchronized void reduce(List<Word> words, List<String> pattern, int thread, String word, int numberOfLine) {
             if (pattern.contains(word))
                 words.add(new Word(numberOfLine, word, thread, LocalDateTime.now()));
+        }
+
+        public synchronized void reduceUsingSemaphore(List<Word> words, List<String> pattern, int thread, String word, int numberOfLine) {
+            try {
+                this.semaphore.acquire();
+                if (pattern.contains(word))
+                    words.add(new Word(numberOfLine, word, thread, LocalDateTime.now()));
+            } catch (InterruptedException e) {
+                // ignore
+            } finally {
+                semaphore.release();
+            }
+        }
+
+        public void reduceUsingMutex(List<Word> words, List<String> pattern, int thread, String word, int numberOfLine) {
+            synchronized (mutex) {
+                if (pattern.contains(word))
+                    words.add(new Word(numberOfLine, word, thread, LocalDateTime.now()));
+            }
         }
     }
 
